@@ -87,6 +87,20 @@ The following environment variables are supported:
    image. The variable should contain sources in [one-line-style format](https://manpages.debian.org/stable/apt/sources.list.5.en.html#ONE-LINE-STYLE_FORMAT).
    "RELEASE" will be replaced with the RELEASE variable.
 
+ * `LILYGO_DTOVERLAYS_DIR` (Default: unset)
+
+   Local path to a `lilygo-linux-dtoverlays` checkout. `build-docker.sh`
+   mounts this directory into the build container when set. When unset, the
+   T-DisplayCM0 stage clones the upstream repository.
+
+ * `LILYGO_DTOVERLAYS_REPO` (Default: `https://github.com/Xinyuan-LilyGO/lilygo-linux-dtoverlays.git`)
+
+   Git repository used when `LILYGO_DTOVERLAYS_DIR` is unset.
+
+ * `LILYGO_DTOVERLAYS_REF` (Default: `master`)
+
+   Branch or tag to check out from `LILYGO_DTOVERLAYS_REPO`.
+
  * `BASE_DIR`  (Default: location of `build.sh`)
 
    **CAUTION**: Currently, changing this value will probably break build.sh
@@ -246,6 +260,38 @@ The config file can also be specified on the command line as an argument the `bu
 ```
 
 This is parsed after `config` so can be used to override values set there.
+
+### T-DisplayCM0 image
+
+The T-DisplayCM0 stage uses `modules/T-DisplayCM0` from
+[`lilygo-linux-dtoverlays`](https://github.com/Xinyuan-LilyGO/lilygo-linux-dtoverlays).
+Its board Makefile compiles `t-display-cm0.dtbo` and the shared external drivers
+for the charger, fuel gauge, audio codec, AMOLED panel, touchscreen, and IMU.
+The keyboard uses Raspberry Pi OS's in-kernel TCA8418 driver. The complete
+`modules` tree is copied into the image build environment so the board
+Makefile's relative driver paths remain valid.
+
+The image installs the overlay as
+`/boot/firmware/overlays/t-display-cm0.dtbo`, loads the pi-gen-owned board
+settings from `/boot/firmware/t-display-cm0.txt`, and installs each external
+driver under
+`/lib/modules/<kernel-release>/extra`. Drivers are rebuilt for every installed
+Raspberry Pi v8 kernel ABI, followed by `depmod` and checks for matching
+vermagic, module-index entries, and the device-tree aliases used by the board.
+
+For local development, point the build at the adjacent driver checkout in the
+pi-gen `config` file:
+
+```bash
+IMG_NAME='t-displaycm0'
+LILYGO_DTOVERLAYS_DIR='../lilygo-linux-dtoverlays'
+```
+
+Then build the image with:
+
+```bash
+./build-docker.sh
+```
 
 ## How the build process works
 

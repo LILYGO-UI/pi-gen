@@ -49,3 +49,4 @@ otg_mode=1
 dtoverlay=dwc2,dr_mode=host
 
 [all]
+include t-display-cm0.txt

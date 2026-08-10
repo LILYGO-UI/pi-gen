@@ -1,0 +1,3 @@
+# T-DisplayCM0 board configuration
+dtoverlay=t-display-cm0
+enable_uart=1

@@ -57,6 +57,21 @@ CONTINUE=${CONTINUE:-0}
 PRESERVE_CONTAINER=${PRESERVE_CONTAINER:-0}
 PIGEN_DOCKER_OPTS=${PIGEN_DOCKER_OPTS:-""}
 
+# Optionally make a local lilygo-linux-dtoverlays checkout available inside the
+# build container. Otherwise the board stage clones the upstream repository.
+LILYGO_DTOVERLAYS_HOST_DIR="${LILYGO_DTOVERLAYS_DIR:-}"
+LILYGO_DTOVERLAYS_DOCKER_VOLUME=""
+LILYGO_DTOVERLAYS_CONTAINER_DIR=""
+if [ -n "${LILYGO_DTOVERLAYS_HOST_DIR}" ]; then
+	if [ ! -d "${LILYGO_DTOVERLAYS_HOST_DIR}" ]; then
+		echo "LILYGO_DTOVERLAYS_DIR does not exist: ${LILYGO_DTOVERLAYS_HOST_DIR}" 1>&2
+		exit 1
+	fi
+	LILYGO_DTOVERLAYS_HOST_DIR="$(cd "${LILYGO_DTOVERLAYS_HOST_DIR}" && pwd)"
+	LILYGO_DTOVERLAYS_CONTAINER_DIR="/lilygo-linux-dtoverlays"
+	LILYGO_DTOVERLAYS_DOCKER_VOLUME="--volume=${LILYGO_DTOVERLAYS_HOST_DIR}:${LILYGO_DTOVERLAYS_CONTAINER_DIR}:ro"
+fi
+
 if [ -z "${IMG_NAME}" ]; then
 	echo "IMG_NAME not set in 'config'" 1>&2
 	echo 1>&2
@@ -136,8 +151,12 @@ time ${DOCKER} run \
   --name "${DOCKER_CMDLINE_NAME}" \
   --privileged \
   ${PIGEN_DOCKER_OPTS} \
+  ${LILYGO_DTOVERLAYS_DOCKER_VOLUME} \
   --volume "${CONFIG_FILE}":/config:ro \
   -e "GIT_HASH=${GIT_HASH}" \
+  -e "LILYGO_DTOVERLAYS_CONTAINER_DIR=${LILYGO_DTOVERLAYS_CONTAINER_DIR}" \
+  -e "LILYGO_DTOVERLAYS_REPO=${LILYGO_DTOVERLAYS_REPO:-}" \
+  -e "LILYGO_DTOVERLAYS_REF=${LILYGO_DTOVERLAYS_REF:-}" \
   $DOCKER_CMDLINE_POST \
   pi-gen \
   bash -e -o pipefail -c "
