@@ -94,8 +94,10 @@ if [ "${CONTAINER_EXISTS}" != "" ] && [ "${CONTINUE}" != "1" ]; then
 	exit 1
 fi
 
-# Modify original build-options to allow config file to be mounted in the docker container
-BUILD_OPTS="$(echo "${BUILD_OPTS:-}" | sed -E 's@\-c\s?([^ ]+)@-c /config@')"
+# Modify original build-options to allow the config file to be mounted in the
+# docker container. Match the complete `-c <path>` argument so paths such as
+# `/tmp/pi-gen-config-clean` are not truncated.
+BUILD_OPTS="$(printf '%s\n' "${BUILD_OPTS:-}" | sed -E 's@(^|[[:space:]])-c[[:space:]]+[^[:space:]]+@\1-c /config@g')"
 
 ${DOCKER} build --build-arg BASE_IMAGE=debian:trixie -t pi-gen "${DIR}"
 
@@ -157,6 +159,8 @@ time ${DOCKER} run \
   -e "LILYGO_DTOVERLAYS_CONTAINER_DIR=${LILYGO_DTOVERLAYS_CONTAINER_DIR}" \
   -e "LILYGO_DTOVERLAYS_REPO=${LILYGO_DTOVERLAYS_REPO:-}" \
   -e "LILYGO_DTOVERLAYS_REF=${LILYGO_DTOVERLAYS_REF:-}" \
+  -e "LILYGO_UI_APT_URL=${LILYGO_UI_APT_URL:-https://lilygo-ui.github.io/packages}" \
+  -e "LILYGO_UI_APT_KEY_URL=${LILYGO_UI_APT_KEY_URL:-}" \
   $DOCKER_CMDLINE_POST \
   pi-gen \
   bash -e -o pipefail -c "

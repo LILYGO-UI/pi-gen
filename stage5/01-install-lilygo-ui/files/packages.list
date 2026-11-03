@@ -1,0 +1,31 @@
+# Every published LILYGO UI package is installed from the signed APT repository.
+# Keep this list explicit so a newly published package cannot silently change an
+# image without updating pi-gen.
+lilygo-ui-appkit-dev
+lilygo-ui-calculator
+lilygo-ui-camera
+lilygo-ui-cellular
+lilygo-ui-clash
+lilygo-ui-files
+lilygo-ui-gallery
+lilygo-ui-i2cdetector
+lilygo-ui-imu
+lilygo-ui-launcher
+lilygo-ui-maps
+lilygo-ui-mesa-vc4
+lilygo-ui-meshtastic
+lilygo-ui-monitor
+lilygo-ui-music
+lilygo-ui-nes
+lilygo-ui-picoclaw
+lilygo-ui-radio
+lilygo-ui-sensors
+lilygo-ui-serial
+lilygo-ui-settings
+lilygo-ui-store
+lilygo-ui-telegram
+lilygo-ui-template
+lilygo-ui-terminal
+lilygo-ui-xiaozhi
+lilygo-ui-youtube
+meshtasticd

@@ -1,0 +1,13 @@
+# LILYGO T-DisplayCM0 LR2021 radio
+Meta:
+  name: LILYGO CM0 LR2021
+
+Lora:
+  Module: lr2021
+  IRQ: 25
+  Busy: 24
+  Reset: 7
+  spidev: spidev0.0
+
+General:
+  MACAddressSource: eth0

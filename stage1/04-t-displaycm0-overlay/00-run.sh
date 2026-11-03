@@ -11,37 +11,44 @@ if [ -z "${OVERLAY_REPO_DIR}" ]; then
 fi
 
 MODULES_DIR="${OVERLAY_REPO_DIR}/modules"
-BOARD_DIR="${MODULES_DIR}/T-DisplayCM0"
+BOARD_DIR="${OVERLAY_REPO_DIR}/boards/T-DisplayCM0"
 
 for REQUIRED_FILE in \
-	module.mk \
-	T-DisplayCM0/Makefile \
-	T-DisplayCM0/t-display-cm0-overlay.dts \
-	bq25890/Makefile \
-	bq27xxx/Makefile \
-	es8328/Makefile \
-	goodix-berlin/Makefile \
-	panel-rm69a10/Makefile \
-	qmi8658c/Makefile; do
-	if [ ! -f "${MODULES_DIR}/${REQUIRED_FILE}" ]; then
-		echo "T-DisplayCM0 build input not found: ${MODULES_DIR}/${REQUIRED_FILE}" 1>&2
+	modules/module.mk \
+	boards/T-DisplayCM0/Makefile \
+	boards/T-DisplayCM0/i2c-dev.conf \
+	boards/T-DisplayCM0/t-display-cm0-overlay.dts \
+	modules/bq25890/Makefile \
+	modules/bq27xxx/Makefile \
+	modules/es8389/Makefile \
+	modules/goodix-berlin/Makefile \
+	modules/panel-rm69a10/Makefile \
+	modules/qmi8658c/Makefile; do
+	if [ ! -f "${OVERLAY_REPO_DIR}/${REQUIRED_FILE}" ]; then
+		echo "T-DisplayCM0 build input not found: ${OVERLAY_REPO_DIR}/${REQUIRED_FILE}" 1>&2
 		exit 1
 	fi
 done
 
-# Keep the complete modules tree so the board Makefile can reach shared drivers.
-rm -rf "${ROOTFS_DIR}/tmp/lilygo-linux-modules"
-install -d "${ROOTFS_DIR}/tmp/lilygo-linux-modules"
-cp -a "${MODULES_DIR}/." "${ROOTFS_DIR}/tmp/lilygo-linux-modules/"
+# Preserve the repository layout expected by the board Makefile's MODULE_ROOT.
+rm -rf "${ROOTFS_DIR}/tmp/lilygo-linux-dtoverlays"
+install -d \
+	"${ROOTFS_DIR}/tmp/lilygo-linux-dtoverlays/boards/T-DisplayCM0" \
+	"${ROOTFS_DIR}/tmp/lilygo-linux-dtoverlays/modules"
+cp -a "${BOARD_DIR}/." \
+	"${ROOTFS_DIR}/tmp/lilygo-linux-dtoverlays/boards/T-DisplayCM0/"
+cp -a "${MODULES_DIR}/." \
+	"${ROOTFS_DIR}/tmp/lilygo-linux-dtoverlays/modules/"
 
 # Build the overlay and all external drivers against every installed v8 ABI.
 on_chroot << 'CHROOT'
 set -e
 
-BUILD_DIR="/tmp/lilygo-linux-modules"
-BOARD_DIR="${BUILD_DIR}/T-DisplayCM0"
-DRIVER_DIRS="bq25890 bq27xxx es8328 goodix-berlin panel-rm69a10 qmi8658c"
-MODULE_NAMES="bq25890_charger bq27xxx_battery bq27xxx_battery_i2c snd-soc-es8328-i2c goodix_berlin_core goodix_berlin_i2c panel_rm69a10 qmi8658c"
+BUILD_DIR="/tmp/lilygo-linux-dtoverlays"
+MODULES_DIR="${BUILD_DIR}/modules"
+BOARD_DIR="${BUILD_DIR}/boards/T-DisplayCM0"
+DRIVER_DIRS="bq25890 bq27xxx es8389 goodix-berlin panel-rm69a10 qmi8658c"
+MODULE_NAMES="bq25890_charger bq27xxx_battery bq27xxx_battery_i2c es8389 goodix_berlin_core goodix_berlin_i2c panel_rm69a10 qmi8658c"
 FOUND_KERNEL=0
 OVERLAY_INSTALLED=0
 
@@ -91,7 +98,7 @@ for KERNEL_DIR in /lib/modules/*-v8/build; do
 	else
 		# Kbuild outputs and Module.symvers files are specific to a kernel ABI.
 		for DRIVER_DIR in ${DRIVER_DIRS}; do
-			make -C "${BUILD_DIR}/${DRIVER_DIR}" \
+			make -C "${MODULES_DIR}/${DRIVER_DIR}" \
 				KERNELDIR="${KERNEL_DIR}" KVER="${KVER}" clean
 		done
 	fi
@@ -134,7 +141,7 @@ for KERNEL_DIR in /lib/modules/*-v8/build; do
 
 	check_alias "${MODULE_DIR}/bq25890_charger.ko" 'Cti,bq25890'
 	check_alias "${MODULE_DIR}/bq27xxx_battery_i2c.ko" 'Cti,bq27220'
-	check_alias "${MODULE_DIR}/snd-soc-es8328-i2c.ko" 'Ceverest,es8388'
+	check_alias "${MODULE_DIR}/es8389.ko" 'Ceverest,es8389'
 	check_alias "${MODULE_DIR}/goodix_berlin_i2c.ko" 'Cgoodix,gt9895'
 	check_alias "${MODULE_DIR}/panel_rm69a10.ko" 'Craydium,rm69a10'
 
@@ -151,6 +158,11 @@ for KERNEL_DIR in /lib/modules/*-v8/build; do
 	esac
 	check_alias "${SYSTEM_TCA_FILE}" 'Cti,tca8418'
 done
+
+# Keep i2c-dev loaded on every boot. The board Makefile owns the module-load
+# fragment, but the image stage must invoke that install target explicitly
+# because the build below installs the overlay and modules separately.
+make -C "${BOARD_DIR}" install_modules_load
 
 if [ "${FOUND_KERNEL}" -eq 0 ]; then
 	echo "Raspberry Pi v8 kernel headers not found" 1>&2

@@ -1,3 +1,6 @@
 # T-DisplayCM0 board configuration
+dtparam=i2c_arm=on
+dtoverlay=i2c0,pins_44_45
+dtoverlay=spi0-1cs
 dtoverlay=t-display-cm0
 enable_uart=1

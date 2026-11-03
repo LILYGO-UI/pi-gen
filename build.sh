@@ -230,6 +230,8 @@ export LILYGO_DTOVERLAYS_DIR
 export LILYGO_DTOVERLAYS_CONTAINER_DIR
 export LILYGO_DTOVERLAYS_REPO
 export LILYGO_DTOVERLAYS_REF
+export LILYGO_UI_APT_URL="${LILYGO_UI_APT_URL:-https://lilygo-ui.github.io/packages}"
+export LILYGO_UI_APT_KEY_URL="${LILYGO_UI_APT_KEY_URL:-${LILYGO_UI_APT_URL%/}/apt-keyring.gpg}"
 
 export STAGE
 export STAGE_DIR

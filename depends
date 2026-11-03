@@ -13,6 +13,7 @@ grep
 rsync
 xz:xz-utils
 curl
+python3
 xxd
 file
 git

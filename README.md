@@ -22,7 +22,7 @@ To install the required dependencies for `pi-gen` you should run:
 ```bash
 apt install coreutils quilt parted qemu-user-binfmt debootstrap zerofree zip \
 dosfstools e2fsprogs libarchive-tools libcap2-bin grep rsync xz-utils file git curl bc \
-gpg pigz xxd arch-test bmap-tools kmod
+gpg pigz xxd arch-test bmap-tools kmod python3
 ```
 
 The file `depends` contains a list of tools needed.  The format of this
@@ -100,6 +100,16 @@ The following environment variables are supported:
  * `LILYGO_DTOVERLAYS_REF` (Default: `master`)
 
    Branch or tag to check out from `LILYGO_DTOVERLAYS_REPO`.
+
+ * `LILYGO_UI_APT_URL` (Default: `https://lilygo-ui.github.io/packages`)
+
+   Signed Debian repository used to install the LILYGO UI packages. The
+   repository must publish the `stable` suite and `main` component.
+
+ * `LILYGO_UI_APT_KEY_URL` (Default: `${LILYGO_UI_APT_URL}/apt-keyring.gpg`)
+
+   URL of the binary APT archive keyring. The key is installed into the image
+   before APT refreshes the repository metadata.
 
  * `BASE_DIR`  (Default: location of `build.sh`)
 
@@ -263,13 +273,14 @@ This is parsed after `config` so can be used to override values set there.
 
 ### T-DisplayCM0 image
 
-The T-DisplayCM0 stage uses `modules/T-DisplayCM0` from
+The T-DisplayCM0 stage uses `boards/T-DisplayCM0` from
 [`lilygo-linux-dtoverlays`](https://github.com/Xinyuan-LilyGO/lilygo-linux-dtoverlays).
 Its board Makefile compiles `t-display-cm0.dtbo` and the shared external drivers
 for the charger, fuel gauge, audio codec, AMOLED panel, touchscreen, and IMU.
 The keyboard uses Raspberry Pi OS's in-kernel TCA8418 driver. The complete
-`modules` tree is copied into the image build environment so the board
-Makefile's relative driver paths remain valid.
+`modules` tree and T-DisplayCM0 board directory are copied into the image build
+environment with their repository layout intact so the board Makefile's
+relative driver paths remain valid.
 
 The image installs the overlay as
 `/boot/firmware/overlays/t-display-cm0.dtbo`, loads the pi-gen-owned board
@@ -278,6 +289,9 @@ driver under
 `/lib/modules/<kernel-release>/extra`. Drivers are rebuilt for every installed
 Raspberry Pi v8 kernel ABI, followed by `depmod` and checks for matching
 vermagic, module-index entries, and the device-tree aliases used by the board.
+The stage also installs `i2c-dev` in
+`/etc/modules-load.d/t-display-cm0.conf`, so `/dev/i2c-*` character devices
+are created automatically after boot.
 
 For local development, point the build at the adjacent driver checkout in the
 pi-gen `config` file:
@@ -292,6 +306,37 @@ Then build the image with:
 ```bash
 ./build-docker.sh
 ```
+
+### LILYGO UI applications
+
+Stage2 and stage5 configure the signed
+[`LILYGO-UI/packages` APT repository](https://lilygo-ui.github.io/packages),
+refresh its metadata, and install every package listed in
+`stage5/01-install-lilygo-ui/files/packages.list`. The list includes all
+published LILYGO UI applications, the `lilygo-ui-appkit-dev` and
+`lilygo-ui-mesa-vc4` runtime packages, and `meshtasticd`. APT resolves package
+dependencies and verifies the repository signature; the public key and source
+list remain in the resulting
+image so the packages can be upgraded after first boot.
+
+The exact package list is copied to `/opt/lilygo-ui/packages.list` for version
+inspection. Stage5 repeats the installation with `--reinstall`, which reapplies
+maintainer scripts after the later desktop stages. Stages explicitly skipped
+with `SKIP` do not refresh packages.
+
+For the CM0 LR2021 radio, the installer also writes the board profile to
+`/etc/meshtasticd/config.d/lora-lr2021.yaml` and enables
+`meshtasticd.service`. The T-DisplayCM0 boot fragment enables SPI so the
+profile's `/dev/spidev0.0` device is available after boot.
+
+The installer removes cached LILYGO UI index files before refreshing APT. This
+allows a resumed build to recover after an interrupted or failed GitHub Pages
+deployment; set `CLEAN=1` in the build configuration when the whole stage rootfs
+also needs to be rebuilt.
+
+The launcher package becomes the primary DRM UI service; its maintainer script
+masks `getty@tty1` and disables an existing display manager as part of that
+setup.
 
 ## How the build process works
 

@@ -125,11 +125,21 @@ ensure_loopdev_partitions() {
 	local line
 	local partition
 	local majmin
+	local devnode
+	local current_majmin
 	lsblk -r -n -o "NAME,MAJ:MIN" "$1" | grep -v "^${1#/dev/} " | while read -r line; do
 		partition="${line%% *}"
 		majmin="${line#* }"
-		if [ ! -b "/dev/$partition" ]; then
-			mknod "/dev/$partition" b "${majmin%:*}" "${majmin#*:}"
+		devnode="/dev/$partition"
+		current_majmin=""
+		if [ -b "$devnode" ]; then
+			current_majmin="$(printf '%d:%d' \
+				"0x$(stat -c '%t' "$devnode")" \
+				"0x$(stat -c '%T' "$devnode")")"
+		fi
+		if [ "$current_majmin" != "$majmin" ]; then
+			rm -f "$devnode"
+			mknod "$devnode" b "${majmin%:*}" "${majmin#*:}"
 		fi
 	done
 	command -v udevadm >/dev/null 2>&1 || return 0
